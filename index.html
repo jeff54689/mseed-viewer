@@ -58,17 +58,61 @@
   </div>
 
   <script>
-    document.getElementById("applyButton").addEventListener("click", function () {
-      console.log("Apply button clicked");
-      // TODO: your WASM-based processing code here
-    });
+    let mseedFileBuffer = null;
 
     document.getElementById("mseedFileInput").addEventListener("change", function (event) {
       const file = event.target.files[0];
       if (file) {
         const sizeKB = (file.size / 1024).toFixed(2);
         document.getElementById("fileDetails").innerText = `File: ${file.name}\nSize: ${sizeKB} KB`;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          mseedFileBuffer = new Uint8Array(e.target.result);
+        };
+        reader.readAsArrayBuffer(file);
       }
+    });
+
+    document.getElementById("applyButton").addEventListener("click", function () {
+      if (!mseedFileBuffer) {
+        alert("Please upload a MiniSEED file first.");
+        return;
+      }
+
+      // Ensure WASM is initialized
+      if (typeof Module === 'undefined' || typeof Module.cwrap === 'undefined') {
+        alert("WebAssembly not yet initialized. Please wait.");
+        return;
+      }
+
+      const length = mseedFileBuffer.length;
+      const ptr = Module._malloc(length);
+      Module.HEAPU8.set(mseedFileBuffer, ptr);
+
+      const process = Module.cwrap("read_mseed", "number", ["number", "number"]);
+      const result = process(ptr, length);
+
+      Module._free(ptr);
+
+      document.getElementById("trace-info").innerText = `Processed ${length} bytes.\nReturn value: ${result}`;
+
+      // Mock waveform and FFT plots after processing
+      const fs = 100;
+      const time = Array.from({ length: 1000 }, (_, i) => i / fs);
+      const data = time.map(t => Math.sin(2 * Math.PI * 5 * t));
+
+      Plotly.newPlot('waveform', [{ x: time, y: data, type: 'scatter', mode: 'lines', name: 'Waveform' }], {
+        margin: { t: 30 }, xaxis: { title: 'Time (s)' }, yaxis: { title: 'Amplitude' }
+      });
+
+      const fftSize = data.length;
+      const freq = Array.from({ length: fftSize / 2 }, (_, i) => i * fs / fftSize);
+      const spectrum = freq.map(() => Math.random() * 10);
+
+      Plotly.newPlot('fft', [{ x: freq, y: spectrum, type: 'scatter', mode: 'lines', name: 'FFT' }], {
+        margin: { t: 30 }, xaxis: { title: 'Frequency (Hz)' }, yaxis: { title: 'Amplitude' }
+      });
     });
   </script>
 </body>
