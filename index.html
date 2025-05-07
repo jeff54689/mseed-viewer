@@ -4,7 +4,65 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MiniSEED Web Viewer</title>
-  <script>
+
+  <!-- 使用最新的 Plotly CDN -->
+  <script src="https://cdn.plot.ly/plotly-2.10.0.min.js"></script>
+  
+  <!-- libmseed.js 和 libmseed.wasm -->
+  <script src="libmseed.js"></script>
+  
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f9f9f9;
+    }
+    .container {
+      max-width: 1000px;
+      margin: auto;
+    }
+    .section {
+      margin-bottom: 40px;
+    }
+    #trace-info {
+      white-space: pre-wrap;
+      background-color: #eee;
+      padding: 10px;
+      border: 1px solid #ccc;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>MiniSEED Web Viewer</h1>
+
+    <div class="section">
+      <label for="mseedFileInput">Upload .mseed file:</label>
+      <div style="margin-top: 10px;">
+        <input type="file" id="mseedFileInput" accept=".mseed">
+        <button id="applyButton">Apply</button>
+      </div>
+      <div id="fileDetails" style="margin-top:10px; font-family: monospace; color: #444;"></div>
+    </div>
+
+    <div class="section">
+      <h2>Trace Information</h2>
+      <div id="trace-info">No data loaded.</div>
+    </div>
+
+    <div class="section">
+      <h2>Waveform Plot</h2>
+      <div id="waveform" style="height: 300px;"></div>
+    </div>
+
+    <div class="section">
+      <h2>FFT Spectrum</h2>
+      <div id="fft" style="height: 300px;"></div>
+    </div>
+  </div>
+
+<script>
   let mseedFileBuffer = null;
 
   // 確保 WebAssembly 模組正確初始化
@@ -94,143 +152,5 @@
   };
 </script>
 
-  <!-- 使用最新的 Plotly CDN -->
-  <script src="https://cdn.plot.ly/plotly-2.10.0.min.js"></script>
-  
-  <!-- libmseed.js 和 libmseed.wasm -->
-  <script src="libmseed.js"></script>
-  
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      background-color: #f9f9f9;
-    }
-    .container {
-      max-width: 1000px;
-      margin: auto;
-    }
-    .section {
-      margin-bottom: 40px;
-    }
-    #trace-info {
-      white-space: pre-wrap;
-      background-color: #eee;
-      padding: 10px;
-      border: 1px solid #ccc;
-      font-family: monospace;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>MiniSEED Web Viewer</h1>
-
-    <div class="section">
-      <label for="mseedFileInput">Upload .mseed file:</label>
-      <div style="margin-top: 10px;">
-        <input type="file" id="mseedFileInput" accept=".mseed">
-        <button id="applyButton">Apply</button>
-      </div>
-      <div id="fileDetails" style="margin-top:10px; font-family: monospace; color: #444;"></div>
-    </div>
-
-    <div class="section">
-      <h2>Trace Information</h2>
-      <div id="trace-info">No data loaded.</div>
-    </div>
-
-    <div class="section">
-      <h2>Waveform Plot</h2>
-      <div id="waveform" style="height: 300px;"></div>
-    </div>
-
-    <div class="section">
-      <h2>FFT Spectrum</h2>
-      <div id="fft" style="height: 300px;"></div>
-    </div>
-  </div>
-
-  <script>
-    let mseedFileBuffer = null;
-
-    // 確保 WebAssembly 模組正確初始化
-    Module.onRuntimeInitialized = function() {
-      console.log("WebAssembly Initialized!");
-      
-      // 當選擇 .mseed 文件時觸發
-      document.getElementById("mseedFileInput").addEventListener("change", function (event) {
-        const file = event.target.files[0];
-        if (file) {
-          const sizeKB = (file.size / 1024).toFixed(2);
-          document.getElementById("fileDetails").innerText = `File: ${file.name}\nSize: ${sizeKB} KB`;
-
-          const reader = new FileReader();
-          reader.onload = function(e) {
-            mseedFileBuffer = new Uint8Array(e.target.result);
-          };
-          reader.readAsArrayBuffer(file);
-        }
-      });
-
-      // 當點擊 Apply 按鈕時觸發
-      document.getElementById("applyButton").addEventListener("click", function () {
-        if (!mseedFileBuffer) {
-          alert("Please upload a MiniSEED file first.");
-          return;
-        }
-
-        // 分配內存並將 .mseed 文件加載到 WebAssembly
-        const length = mseedFileBuffer.length;
-        const ptr = Module._malloc(length);
-        Module.HEAPU8.set(mseedFileBuffer, ptr);
-
-        // 呼叫 WASM 函數進行處理
-        const process = Module.cwrap("read_mseed", "number", ["number", "number"]);
-        const result = process(ptr, length);
-
-        // 釋放內存
-        Module._free(ptr);
-
-        // 顯示處理結果
-        document.getElementById("trace-info").innerText = `Processed ${length} bytes.\nReturn value: ${result}`;
-
-        // 模擬波形和 FFT 圖表（此部分可以根據實際處理結果進行調整）
-        const fs = 100; // 假設的取樣率
-        const time = Array.from({ length: 1000 }, (_, i) => i / fs);
-        const data = time.map(t => Math.sin(2 * Math.PI * 5 * t)); // 模擬的正弦波
-
-        // 畫出波形圖
-        Plotly.newPlot('waveform', [{
-          x: time,
-          y: data,
-          type: 'scatter',
-          mode: 'lines',
-          name: 'Waveform'
-        }], {
-          margin: { t: 30 },
-          xaxis: { title: 'Time (s)' },
-          yaxis: { title: 'Amplitude' }
-        });
-
-        // FFT 計算並畫出頻譜圖
-        const fftSize = data.length;
-        const freq = Array.from({ length: fftSize / 2 }, (_, i) => i * fs / fftSize);
-        const spectrum = freq.map(() => Math.random() * 10);
-
-        Plotly.newPlot('fft', [{
-          x: freq,
-          y: spectrum,
-          type: 'scatter',
-          mode: 'lines',
-          name: 'FFT Spectrum'
-        }], {
-          margin: { t: 30 },
-          xaxis: { title: 'Frequency (Hz)' },
-          yaxis: { title: 'Amplitude' }
-        });
-      });
-    };
-  </script>
 </body>
 </html>
