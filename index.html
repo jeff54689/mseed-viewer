@@ -8,7 +8,7 @@
   <!-- 使用最新的 Plotly CDN -->
   <script src="https://cdn.plot.ly/plotly-2.10.0.min.js"></script>
 
-  <!-- libmseed.js 和 libmseed.wasm -->
+  <!-- libmseed.js -->
   <script src="libmseed.js"></script>
 
   <style>
@@ -67,8 +67,8 @@
 
     // 確保 WebAssembly 模組正確初始化
     Module.onRuntimeInitialized = function() {
-      console.log("WebAssembly Initialized!");  // 檢查 WebAssembly 是否正確初始化
-
+      console.log("WebAssembly Initialized!");
+      
       // 當選擇 .mseed 文件時觸發
       document.getElementById("mseedFileInput").addEventListener("change", function (event) {
         const file = event.target.files[0];
@@ -79,7 +79,6 @@
           const reader = new FileReader();
           reader.onload = function(e) {
             mseedFileBuffer = new Uint8Array(e.target.result);
-            console.log("File loaded into buffer");  // 這裡會顯示文件加載成功
           };
           reader.readAsArrayBuffer(file);
         }
@@ -87,15 +86,8 @@
 
       // 當點擊 Apply 按鈕時觸發
       document.getElementById("applyButton").addEventListener("click", function () {
-        console.log("Apply button clicked");  // 按下 Apply 按鈕時顯示
         if (!mseedFileBuffer) {
           alert("Please upload a MiniSEED file first.");
-          return;
-        }
-
-        // 確保 WASM 已經初始化
-        if (typeof Module === 'undefined' || typeof Module.cwrap === 'undefined') {
-          alert("WebAssembly not yet initialized. Please wait.");
           return;
         }
 
