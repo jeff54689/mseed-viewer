@@ -4,9 +4,20 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MiniSEED Web Viewer</title>
+  <script>
+    var Module = {
+      locateFile: function (path) {
+        if (path.endsWith('.wasm')) return 'libmseed.wasm';
+        return path;
+      },
+      onRuntimeInitialized: function () {
+        console.log("WebAssembly initialized");
+        window.wasmReady = true;
+      }
+    };
+  </script>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
   <script src="libmseed.js"></script>
-  <script src="libmseed.wasm"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -81,8 +92,7 @@
         return;
       }
 
-      // Ensure WASM is initialized
-      if (typeof Module === 'undefined' || typeof Module.cwrap === 'undefined') {
+      if (!window.wasmReady) {
         alert("WebAssembly not yet initialized. Please wait.");
         return;
       }
@@ -98,7 +108,6 @@
 
       document.getElementById("trace-info").innerText = `Processed ${length} bytes.\nReturn value: ${result}`;
 
-      // Mock waveform and FFT plots after processing
       const fs = 100;
       const time = Array.from({ length: 1000 }, (_, i) => i / fs);
       const data = time.map(t => Math.sin(2 * Math.PI * 5 * t));
