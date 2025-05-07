@@ -7,10 +7,10 @@
 
   <!-- 使用最新的 Plotly CDN -->
   <script src="https://cdn.plot.ly/plotly-2.10.0.min.js"></script>
-  
+
   <!-- libmseed.js 和 libmseed.wasm -->
   <script src="libmseed.js"></script>
-  
+
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -62,95 +62,94 @@
     </div>
   </div>
 
-<script>
-  let mseedFileBuffer = null;
+  <script>
+    let mseedFileBuffer = null;
 
-  // 確保 WebAssembly 模組正確初始化
-  Module.onRuntimeInitialized = function() {
-    console.log("WebAssembly Initialized!");  // 這裡會顯示 WebAssembly 初始化成功
+    // 確保 WebAssembly 模組正確初始化
+    Module.onRuntimeInitialized = function() {
+      console.log("WebAssembly Initialized!");  // 檢查 WebAssembly 是否正確初始化
 
-    // 當選擇 .mseed 文件時觸發
-    document.getElementById("mseedFileInput").addEventListener("change", function (event) {
-      const file = event.target.files[0];
-      if (file) {
-        const sizeKB = (file.size / 1024).toFixed(2);
-        document.getElementById("fileDetails").innerText = `File: ${file.name}\nSize: ${sizeKB} KB`;
+      // 當選擇 .mseed 文件時觸發
+      document.getElementById("mseedFileInput").addEventListener("change", function (event) {
+        const file = event.target.files[0];
+        if (file) {
+          const sizeKB = (file.size / 1024).toFixed(2);
+          document.getElementById("fileDetails").innerText = `File: ${file.name}\nSize: ${sizeKB} KB`;
 
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          mseedFileBuffer = new Uint8Array(e.target.result);
-          console.log("File loaded into buffer");  // 這裡會顯示文件加載成功
-        };
-        reader.readAsArrayBuffer(file);
-      }
-    });
-
-    // 當點擊 Apply 按鈕時觸發
-    document.getElementById("applyButton").addEventListener("click", function () {
-      console.log("Apply button clicked");  // 按下 Apply 按鈕時顯示
-      if (!mseedFileBuffer) {
-        alert("Please upload a MiniSEED file first.");
-        return;
-      }
-
-      // 確保 WASM 已經初始化
-      if (typeof Module === 'undefined' || typeof Module.cwrap === 'undefined') {
-        alert("WebAssembly not yet initialized. Please wait.");
-        return;
-      }
-
-      // 分配內存並將 .mseed 文件加載到 WebAssembly
-      const length = mseedFileBuffer.length;
-      const ptr = Module._malloc(length);
-      Module.HEAPU8.set(mseedFileBuffer, ptr);
-
-      // 呼叫 WASM 函數進行處理
-      const process = Module.cwrap("read_mseed", "number", ["number", "number"]);
-      const result = process(ptr, length);
-
-      // 釋放內存
-      Module._free(ptr);
-
-      // 顯示處理結果
-      document.getElementById("trace-info").innerText = `Processed ${length} bytes.\nReturn value: ${result}`;
-
-      // 模擬波形和 FFT 圖表（此部分可以根據實際處理結果進行調整）
-      const fs = 100; // 假設的取樣率
-      const time = Array.from({ length: 1000 }, (_, i) => i / fs);
-      const data = time.map(t => Math.sin(2 * Math.PI * 5 * t)); // 模擬的正弦波
-
-      // 畫出波形圖
-      Plotly.newPlot('waveform', [{
-        x: time,
-        y: data,
-        type: 'scatter',
-        mode: 'lines',
-        name: 'Waveform'
-      }], {
-        margin: { t: 30 },
-        xaxis: { title: 'Time (s)' },
-        yaxis: { title: 'Amplitude' }
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            mseedFileBuffer = new Uint8Array(e.target.result);
+            console.log("File loaded into buffer");  // 這裡會顯示文件加載成功
+          };
+          reader.readAsArrayBuffer(file);
+        }
       });
 
-      // FFT 計算並畫出頻譜圖
-      const fftSize = data.length;
-      const freq = Array.from({ length: fftSize / 2 }, (_, i) => i * fs / fftSize);
-      const spectrum = freq.map(() => Math.random() * 10);
+      // 當點擊 Apply 按鈕時觸發
+      document.getElementById("applyButton").addEventListener("click", function () {
+        console.log("Apply button clicked");  // 按下 Apply 按鈕時顯示
+        if (!mseedFileBuffer) {
+          alert("Please upload a MiniSEED file first.");
+          return;
+        }
 
-      Plotly.newPlot('fft', [{
-        x: freq,
-        y: spectrum,
-        type: 'scatter',
-        mode: 'lines',
-        name: 'FFT Spectrum'
-      }], {
-        margin: { t: 30 },
-        xaxis: { title: 'Frequency (Hz)' },
-        yaxis: { title: 'Amplitude' }
+        // 確保 WASM 已經初始化
+        if (typeof Module === 'undefined' || typeof Module.cwrap === 'undefined') {
+          alert("WebAssembly not yet initialized. Please wait.");
+          return;
+        }
+
+        // 分配內存並將 .mseed 文件加載到 WebAssembly
+        const length = mseedFileBuffer.length;
+        const ptr = Module._malloc(length);
+        Module.HEAPU8.set(mseedFileBuffer, ptr);
+
+        // 呼叫 WASM 函數進行處理
+        const process = Module.cwrap("read_mseed", "number", ["number", "number"]);
+        const result = process(ptr, length);
+
+        // 釋放內存
+        Module._free(ptr);
+
+        // 顯示處理結果
+        document.getElementById("trace-info").innerText = `Processed ${length} bytes.\nReturn value: ${result}`;
+
+        // 模擬波形和 FFT 圖表（此部分可以根據實際處理結果進行調整）
+        const fs = 100; // 假設的取樣率
+        const time = Array.from({ length: 1000 }, (_, i) => i / fs);
+        const data = time.map(t => Math.sin(2 * Math.PI * 5 * t)); // 模擬的正弦波
+
+        // 畫出波形圖
+        Plotly.newPlot('waveform', [{
+          x: time,
+          y: data,
+          type: 'scatter',
+          mode: 'lines',
+          name: 'Waveform'
+        }], {
+          margin: { t: 30 },
+          xaxis: { title: 'Time (s)' },
+          yaxis: { title: 'Amplitude' }
+        });
+
+        // FFT 計算並畫出頻譜圖
+        const fftSize = data.length;
+        const freq = Array.from({ length: fftSize / 2 }, (_, i) => i * fs / fftSize);
+        const spectrum = freq.map(() => Math.random() * 10);
+
+        Plotly.newPlot('fft', [{
+          x: freq,
+          y: spectrum,
+          type: 'scatter',
+          mode: 'lines',
+          name: 'FFT Spectrum'
+        }], {
+          margin: { t: 30 },
+          xaxis: { title: 'Frequency (Hz)' },
+          yaxis: { title: 'Amplitude' }
+        });
       });
-    });
-  };
-</script>
-
+    };
+  </script>
 </body>
 </html>
