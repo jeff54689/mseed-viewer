@@ -4,6 +4,7 @@ var Module = (() => {
 async function(moduleArg = {}) {
   var moduleRtn;
 
+  
 // include: shell.js
 // The Module object: Our interface to the outside world. We import
 // and export values on it. There are various ways Module can be used:
