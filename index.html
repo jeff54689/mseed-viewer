@@ -35,6 +35,7 @@
             <label for="fileInput">Upload .mseed file:</label>
             <input type="file" id="fileInput" accept=".mseed">
             <p><em>(Note: .mseed parsing not yet supported. Using mock data.)</em></p>
+            <div id="fileDetails" style="margin-top:10px; font-family: monospace; color: #444;"></div>
         </div>
 
         <div class="section">
@@ -54,6 +55,19 @@
     </div>
 
     <script>
+        let uploadedFile = null;
+
+        document.getElementById("fileInput").addEventListener("change", function (event) {
+            const file = event.target.files[0];
+            if (file) {
+                uploadedFile = file;
+                const sizeKB = (file.size / 1024).toFixed(2);
+                document.getElementById("fileDetails").innerText = `File: ${file.name}\nSize: ${sizeKB} KB`;
+
+                // In future: parse with WebAssembly module
+            }
+        });
+
         // Mock Data
         const fs = 100; // sample rate Hz
         const time = Array.from({length: 1000}, (_, i) => i / fs);
@@ -77,9 +91,6 @@
 
         // Compute FFT
         const fftSize = data.length;
-        const fft = data.map((_, i) => {
-            return Math.sin(2 * Math.PI * i / fftSize * 5); // mock FFT
-        });
         const freq = Array.from({length: fftSize / 2}, (_, i) => i * fs / fftSize);
         const spectrum = freq.map(f => Math.random() * 10); // random spectrum for now
 
