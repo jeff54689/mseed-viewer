@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MiniSEED Web Viewer</title>
   <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="libmseed.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -32,8 +33,11 @@
     <h1>MiniSEED Web Viewer</h1>
 
     <div class="section">
-      <label for="fileInput">Upload .mseed file:</label>
-      <input type="file" id="fileInput" accept=".mseed" />
+      <label for="mseedFileInput">Upload .mseed file:</label>
+      <div style="margin-top: 10px;">
+        <input type="file" id="mseedFileInput" accept=".mseed">
+        <button id="applyButton">Apply</button>
+      </div>
       <div id="fileDetails" style="margin-top:10px; font-family: monospace; color: #444;"></div>
     </div>
 
@@ -54,81 +58,16 @@
   </div>
 
   <script>
-    let wasmModule = null;
+    document.getElementById("applyButton").addEventListener("click", function () {
+      console.log("Apply button clicked");
+      // TODO: your WASM-based processing code here
+    });
 
-    async function loadWasmModule() {
-      const response = await fetch('libmseed.wasm');
-      const buffer = await response.arrayBuffer();
-      const module = await WebAssembly.instantiate(buffer, {});
-      wasmModule = module.instance.exports;
-    }
-
-    function parseMSeed(buffer) {
-      // 假設 wasmModule 提供一個 parseMSeed 函數
-      // 這裡需要根據實際的 WASM 模組 API 來實作
-      // 以下為示意用途
-      const data = new Float32Array(buffer); // 這只是示意，實際需根據解析結果
-      const fs = 100; // 假設的取樣率
-      return { data, fs };
-    }
-
-    function computeFFT(data, fs) {
-      const fftSize = data.length;
-      const freq = Array.from({length: fftSize / 2}, (_, i) => i * fs / fftSize);
-      const spectrum = freq.map(f => Math.random() * 10); // 示意用隨機數據
-      return { freq, spectrum };
-    }
-
-    function plotWaveform(time, data) {
-      Plotly.newPlot('waveform', [{
-        x: time,
-        y: data,
-        type: 'scatter',
-        mode: 'lines',
-        name: 'Raw Signal'
-      }], {
-        margin: { t: 30 },
-        xaxis: { title: 'Time (s)' },
-        yaxis: { title: 'Amplitude' }
-      });
-    }
-
-    function plotFFT(freq, spectrum) {
-      Plotly.newPlot('fft', [{
-        x: freq,
-        y: spectrum,
-        type: 'scatter',
-        mode: 'lines',
-        name: 'FFT Spectrum'
-      }], {
-        margin: { t: 30 },
-        xaxis: { title: 'Frequency (Hz)' },
-        yaxis: { title: 'Amplitude' }
-      });
-    }
-
-    document.getElementById("fileInput").addEventListener("change", async function (event) {
+    document.getElementById("mseedFileInput").addEventListener("change", function (event) {
       const file = event.target.files[0];
       if (file) {
         const sizeKB = (file.size / 1024).toFixed(2);
         document.getElementById("fileDetails").innerText = `File: ${file.name}\nSize: ${sizeKB} KB`;
-
-        const arrayBuffer = await file.arrayBuffer();
-
-        if (!wasmModule) {
-          await loadWasmModule();
-        }
-
-        const { data, fs } = parseMSeed(arrayBuffer);
-
-        const time = Array.from({length: data.length}, (_, i) => i / fs);
-
-        document.getElementById("trace-info").innerText = `Trace 1:\n  - Sampling Rate: ${fs} Hz\n  - Length: ${data.length} samples\n  - Duration: ${(data.length / fs).toFixed(2)} seconds`;
-
-        plotWaveform(time, data);
-
-        const { freq, spectrum } = computeFFT(data, fs);
-        plotFFT(freq, spectrum);
       }
     });
   </script>
