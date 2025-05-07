@@ -86,6 +86,7 @@
 
       // 當點擊 Apply 按鈕時觸發
       document.getElementById("applyButton").addEventListener("click", function () {
+        console.log("Apply button clicked!");
         if (!mseedFileBuffer) {
           alert("Please upload a MiniSEED file first.");
           return;
