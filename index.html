@@ -1,111 +1,117 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MiniSEED Web Viewer</title>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f9f9f9;
-        }
-        .container {
-            max-width: 1000px;
-            margin: auto;
-        }
-        .section {
-            margin-bottom: 40px;
-        }
-        #trace-info {
-            white-space: pre-wrap;
-            background-color: #eee;
-            padding: 10px;
-            border: 1px solid #ccc;
-            font-family: monospace;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MiniSEED Web Viewer</title>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <script src="libmseed.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background-color: #f9f9f9;
+    }
+    .container {
+      max-width: 1000px;
+      margin: auto;
+    }
+    .section {
+      margin-bottom: 40px;
+    }
+    #trace-info {
+      white-space: pre-wrap;
+      background-color: #eee;
+      padding: 10px;
+      border: 1px solid #ccc;
+      font-family: monospace;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h1>MiniSEED Web Viewer (Prototype)</h1>
+  <div class="container">
+    <h1>MiniSEED Web Viewer (WASM prototype)</h1>
 
-        <div class="section">
-            <label for="fileInput">Upload .mseed file:</label>
-            <input type="file" id="fileInput" accept=".mseed">
-            <p><em>(Note: .mseed parsing not yet supported. Using mock data.)</em></p>
-            <div id="fileDetails" style="margin-top:10px; font-family: monospace; color: #444;"></div>
-        </div>
-
-        <div class="section">
-            <h2>Trace Information</h2>
-            <div id="trace-info">No data loaded.</div>
-        </div>
-
-        <div class="section">
-            <h2>Waveform Plot</h2>
-            <div id="waveform" style="height: 300px;"></div>
-        </div>
-
-        <div class="section">
-            <h2>FFT Spectrum</h2>
-            <div id="fft" style="height: 300px;"></div>
-        </div>
+    <div class="section">
+      <label for="fileInput">Upload .mseed file:</label>
+      <input type="file" id="fileInput" accept=".mseed" />
+      <div id="fileDetails" style="margin-top:10px; font-family: monospace; color: #444;"></div>
     </div>
 
-    <script>
-        let uploadedFile = null;
+    <div class="section">
+      <h2>Trace Information</h2>
+      <div id="trace-info">No data loaded.</div>
+    </div>
 
-        document.getElementById("fileInput").addEventListener("change", function (event) {
-            const file = event.target.files[0];
-            if (file) {
-                uploadedFile = file;
-                const sizeKB = (file.size / 1024).toFixed(2);
-                document.getElementById("fileDetails").innerText = `File: ${file.name}\nSize: ${sizeKB} KB`;
+    <div class="section">
+      <h2>Waveform Plot</h2>
+      <div id="waveform" style="height: 300px;"></div>
+    </div>
 
-                // In future: parse with WebAssembly module
-            }
+    <div class="section">
+      <h2>FFT Spectrum</h2>
+      <div id="fft" style="height: 300px;"></div>
+    </div>
+  </div>
+
+  <script>
+    const Module = {
+      onRuntimeInitialized() {
+        console.log("✅ libmseed WASM initialized");
+
+        document.getElementById("fileInput").addEventListener("change", async function (event) {
+          const file = event.target.files[0];
+          if (file) {
+            const sizeKB = (file.size / 1024).toFixed(2);
+            document.getElementById("fileDetails").innerText = `File: ${file.name}\nSize: ${sizeKB} KB`;
+
+            const buffer = await file.arrayBuffer();
+            Module.FS.writeFile("/input.mseed", new Uint8Array(buffer));
+
+            const result = Module._read_mseed("/input.mseed");
+            console.log("read_mseed result:", result);
+
+            document.getElementById("trace-info").innerText =
+              `✅ Parsed MiniSEED file: ${file.name}\nResult code: ${result}`;
+
+            // 以下為模擬資料顯示（之後可從 C 傳真實資料）
+            const fs = 100;
+            const time = Array.from({ length: 1000 }, (_, i) => i / fs);
+            const data = time.map(t => Math.sin(2 * Math.PI * 5 * t));
+
+            Plotly.newPlot("waveform", [{
+              x: time,
+              y: data,
+              type: "scatter",
+              mode: "lines",
+              name: "Raw Signal"
+            }], {
+              margin: { t: 30 },
+              xaxis: { title: "Time (s)" },
+              yaxis: { title: "Amplitude" }
+            });
+
+            // FFT 模擬
+            const fftSize = data.length;
+            const freq = Array.from({ length: fftSize / 2 }, (_, i) => i * fs / fftSize);
+            const spectrum = freq.map(f => Math.random() * 10);
+
+            Plotly.newPlot("fft", [{
+              x: freq,
+              y: spectrum,
+              type: "scatter",
+              mode: "lines",
+              name: "FFT Spectrum"
+            }], {
+              margin: { t: 30 },
+              xaxis: { title: "Frequency (Hz)" },
+              yaxis: { title: "Amplitude" }
+            });
+          }
         });
-
-        // Mock Data
-        const fs = 100; // sample rate Hz
-        const time = Array.from({length: 1000}, (_, i) => i / fs);
-        const data = time.map(t => Math.sin(2 * Math.PI * 5 * t)); // 5 Hz sine wave
-
-        // Trace info mock display
-        document.getElementById("trace-info").innerText = `Trace 1:\n  - Sampling Rate: ${fs} Hz\n  - Length: ${data.length} samples\n  - Duration: ${data.length / fs} seconds`;
-
-        // Plot waveform
-        Plotly.newPlot('waveform', [{
-            x: time,
-            y: data,
-            type: 'scatter',
-            mode: 'lines',
-            name: 'Raw Signal'
-        }], {
-            margin: { t: 30 },
-            xaxis: { title: 'Time (s)' },
-            yaxis: { title: 'Amplitude' }
-        });
-
-        // Compute FFT
-        const fftSize = data.length;
-        const freq = Array.from({length: fftSize / 2}, (_, i) => i * fs / fftSize);
-        const spectrum = freq.map(f => Math.random() * 10); // random spectrum for now
-
-        // Plot FFT
-        Plotly.newPlot('fft', [{
-            x: freq,
-            y: spectrum,
-            type: 'scatter',
-            mode: 'lines',
-            name: 'FFT Spectrum'
-        }], {
-            margin: { t: 30 },
-            xaxis: { title: 'Frequency (Hz)' },
-            yaxis: { title: 'Amplitude' }
-        });
-    </script>
+      }
+    };
+  </script>
 </body>
 </html>
